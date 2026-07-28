@@ -15,6 +15,7 @@ import { InstagramPreviewModal } from './components/InstagramPreviewModal';
 import { ExportModal } from './components/ExportModal';
 import { AIGeneratorModal } from './components/AIGeneratorModal';
 import { BrandAnalyzerModal } from './components/BrandAnalyzerModal';
+import { ExtractTranslateModal } from './components/ExtractTranslateModal';
 import { TemplateSelector } from './components/TemplateSelector';
 import { IdeaBankView } from './components/IdeaBankView';
 import { SchedulerView } from './components/SchedulerView';
@@ -45,6 +46,8 @@ export default function App() {
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [isAIOpen, setIsAIOpen] = useState(false);
   const [isBrandOpen, setIsBrandOpen] = useState(false);
+  const [isTranslateOpen, setIsTranslateOpen] = useState(false);
+  const [language, setLanguage] = useState<'pt-BR' | 'es-LA'>('pt-BR');
 
   // Active Project & Canvas state
   const [projectTitle, setProjectTitle] = useState(
@@ -302,6 +305,22 @@ export default function App() {
     setCurrentView('editor');
   };
 
+  const handleApplyTranslatedCarousel = (data: {
+    title: string;
+    slides: SlideItem[];
+    caption: string;
+    hashtags: string[];
+    language: 'es-LA';
+  }) => {
+    setProjectTitle(data.title);
+    setSlides(data.slides);
+    setCaption(data.caption);
+    setHashtags(data.hashtags);
+    setLanguage('es-LA');
+    setActiveSlideIndex(0);
+    setCurrentView('editor');
+  };
+
   const handleUseIdeaPrompt = (prompt: string) => {
     setIsAIOpen(true);
   };
@@ -315,6 +334,7 @@ export default function App() {
         openExportModal={() => setIsExportOpen(true)}
         openPreviewModal={() => setIsPreviewOpen(true)}
         openAIModal={() => setIsAIOpen(true)}
+        openTranslateModal={() => setIsTranslateOpen(true)}
         projectTitle={projectTitle}
         setProjectTitle={setProjectTitle}
       />
@@ -346,7 +366,9 @@ export default function App() {
             setShowBrandHandle={setShowBrandHandle}
             openAIModal={() => setIsAIOpen(true)}
             openBrandModal={() => setIsBrandOpen(true)}
+            openTranslateModal={() => setIsTranslateOpen(true)}
             topicPrompt={projectTitle}
+            language={language}
           />
 
           {/* CENTER CANVAS DISPLAY AREA */}
@@ -563,10 +585,14 @@ export default function App() {
         onClose={() => setIsBrandOpen(false)}
         onApplyBrand={(newBrand) => {
           setBrand(newBrand);
-          if (newBrand.backgroundColor) {
-            setThemeStyle('custom');
-          }
+          setThemeStyle('custom');
         }}
+      />
+
+      <ExtractTranslateModal
+        isOpen={isTranslateOpen}
+        onClose={() => setIsTranslateOpen(false)}
+        onApply={handleApplyTranslatedCarousel}
       />
     </div>
   );

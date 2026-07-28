@@ -18,7 +18,83 @@ import {
   RotateCcw,
   RefreshCw,
   Wand2,
+  Languages,
 } from 'lucide-react';
+
+export const PALETTE_PRESETS = [
+  {
+    id: 'indigo-violet',
+    name: 'Indigo & Violeta',
+    primary: '#6366f1',
+    secondary: '#1e1b4b',
+    bg: '#0f172a',
+    text: '#f8fafc',
+    accent: '#ec4899',
+  },
+  {
+    id: 'cyber-neon',
+    name: 'Cyber Neon',
+    primary: '#00f2fe',
+    secondary: '#1e293b',
+    bg: '#050814',
+    text: '#f0fdf4',
+    accent: '#22c55e',
+  },
+  {
+    id: 'luxury-gold',
+    name: 'Luxo Ouro & Preto',
+    primary: '#d97706',
+    secondary: '#1c1917',
+    bg: '#09090b',
+    text: '#fef3c7',
+    accent: '#fbbf24',
+  },
+  {
+    id: 'clean-light',
+    name: 'Clean Light Blue',
+    primary: '#2563eb',
+    secondary: '#f1f5f9',
+    bg: '#ffffff',
+    text: '#0f172a',
+    accent: '#3b82f6',
+  },
+  {
+    id: 'emerald-growth',
+    name: 'Emerald Growth',
+    primary: '#10b981',
+    secondary: '#064e3b',
+    bg: '#022c22',
+    text: '#ecfdf5',
+    accent: '#34d399',
+  },
+  {
+    id: 'sunset-amber',
+    name: 'Sunset Crimson',
+    primary: '#ea580c',
+    secondary: '#27272a',
+    bg: '#18181b',
+    text: '#fff7ed',
+    accent: '#f43f5e',
+  },
+  {
+    id: 'rose-elegance',
+    name: 'Elegância Rose',
+    primary: '#f43f5e',
+    secondary: '#292524',
+    bg: '#1c1917',
+    text: '#fff1f2',
+    accent: '#fb7185',
+  },
+  {
+    id: 'pastel-purple',
+    name: 'Pastel Lilás',
+    primary: '#a855f7',
+    secondary: '#f5f3ff',
+    bg: '#fdf4ff',
+    text: '#3b0764',
+    accent: '#c084fc',
+  },
+];
 
 interface SlideEditorSidebarProps {
   slides: SlideItem[];
@@ -43,6 +119,7 @@ interface SlideEditorSidebarProps {
   setShowBrandHandle: (show: boolean) => void;
   openAIModal: () => void;
   openBrandModal: () => void;
+  openTranslateModal?: () => void;
   topicPrompt?: string;
   language?: string;
 }
@@ -70,6 +147,7 @@ export const SlideEditorSidebar: React.FC<SlideEditorSidebarProps> = ({
   setShowBrandHandle,
   openAIModal,
   openBrandModal,
+  openTranslateModal,
   topicPrompt = '',
   language = 'pt-BR',
 }) => {
@@ -78,6 +156,17 @@ export const SlideEditorSidebar: React.FC<SlideEditorSidebarProps> = ({
   const [isGeneratingBgImage, setIsGeneratingBgImage] = React.useState(false);
 
   const currentSlide = slides[activeSlideIndex] || slides[0];
+
+  const handleApplyPalette = (p: typeof PALETTE_PRESETS[0]) => {
+    updateBrand({
+      primaryColor: p.primary,
+      secondaryColor: p.secondary,
+      backgroundColor: p.bg,
+      textColor: p.text,
+      accentColor: p.accent,
+    });
+    setThemeStyle('custom');
+  };
 
   const handleRegenerateCurrentSlide = async () => {
     if (!currentSlide) return;
@@ -595,6 +684,35 @@ export const SlideEditorSidebar: React.FC<SlideEditorSidebarProps> = ({
               </div>
             </div>
 
+            {/* Quick Preset Palettes */}
+            <div className="space-y-2.5 p-3 bg-slate-950 rounded-xl border border-slate-800">
+              <span className="text-xs font-bold text-slate-300 uppercase tracking-wider block flex items-center justify-between">
+                <span>Paletas Prontas (1-Clique)</span>
+                <span className="text-[10px] text-indigo-400 font-normal">Aplica a todos os slides</span>
+              </span>
+              <div className="grid grid-cols-2 gap-2">
+                {PALETTE_PRESETS.map((p) => (
+                  <button
+                    key={p.id}
+                    onClick={() => handleApplyPalette(p)}
+                    className="p-2 rounded-lg bg-slate-900 border border-slate-800 hover:border-indigo-500 text-left transition flex flex-col gap-1.5 group"
+                  >
+                    <div className="flex items-center justify-between w-full">
+                      <span className="text-[11px] font-bold text-slate-300 group-hover:text-white">
+                        {p.name}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <div className="w-3.5 h-3.5 rounded-full border border-white/20" style={{ backgroundColor: p.primary }} />
+                      <div className="w-3.5 h-3.5 rounded-full border border-white/20" style={{ backgroundColor: p.accent }} />
+                      <div className="w-3.5 h-3.5 rounded-full border border-white/20" style={{ backgroundColor: p.bg }} />
+                      <div className="w-3.5 h-3.5 rounded-full border border-white/20" style={{ backgroundColor: p.text }} />
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {/* Visibility Toggles */}
             <div className="space-y-3 p-3 bg-slate-950 rounded-xl border border-slate-800">
               <span className="text-xs font-bold text-slate-300 uppercase tracking-wider block">
@@ -703,10 +821,38 @@ export const SlideEditorSidebar: React.FC<SlideEditorSidebarProps> = ({
               </select>
             </div>
 
+            {/* Quick Preset Palettes in Brand tab */}
+            <div className="space-y-2.5 p-3 bg-slate-950 rounded-xl border border-slate-800">
+              <span className="text-xs font-bold text-slate-300 uppercase tracking-wider block flex items-center justify-between">
+                <span>Trocar Paleta da Marca (1-Clique)</span>
+              </span>
+              <div className="grid grid-cols-2 gap-2">
+                {PALETTE_PRESETS.map((p) => (
+                  <button
+                    key={p.id}
+                    onClick={() => handleApplyPalette(p)}
+                    className="p-2 rounded-lg bg-slate-900 border border-slate-800 hover:border-indigo-500 text-left transition flex flex-col gap-1.5 group"
+                  >
+                    <div className="flex items-center justify-between w-full">
+                      <span className="text-[11px] font-bold text-slate-300 group-hover:text-white">
+                        {p.name}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <div className="w-3.5 h-3.5 rounded-full border border-white/20" style={{ backgroundColor: p.primary }} />
+                      <div className="w-3.5 h-3.5 rounded-full border border-white/20" style={{ backgroundColor: p.accent }} />
+                      <div className="w-3.5 h-3.5 rounded-full border border-white/20" style={{ backgroundColor: p.bg }} />
+                      <div className="w-3.5 h-3.5 rounded-full border border-white/20" style={{ backgroundColor: p.text }} />
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {/* Color Controls */}
             <div className="space-y-3 p-3 bg-slate-950 rounded-xl border border-slate-800">
               <span className="text-xs font-bold text-slate-300 uppercase tracking-wider block">
-                Paleta de Cores da Marca
+                Editar Cores Hex Manualmente
               </span>
 
               <div className="grid grid-cols-2 gap-3">
@@ -716,7 +862,10 @@ export const SlideEditorSidebar: React.FC<SlideEditorSidebarProps> = ({
                     <input
                       type="color"
                       value={brand.primaryColor}
-                      onChange={(e) => updateBrand({ primaryColor: e.target.value })}
+                      onChange={(e) => {
+                        updateBrand({ primaryColor: e.target.value });
+                        setThemeStyle('custom');
+                      }}
                       className="w-8 h-8 rounded border-none cursor-pointer bg-transparent"
                     />
                     <span className="text-xs font-mono">{brand.primaryColor}</span>
@@ -729,7 +878,10 @@ export const SlideEditorSidebar: React.FC<SlideEditorSidebarProps> = ({
                     <input
                       type="color"
                       value={brand.backgroundColor}
-                      onChange={(e) => updateBrand({ backgroundColor: e.target.value })}
+                      onChange={(e) => {
+                        updateBrand({ backgroundColor: e.target.value });
+                        setThemeStyle('custom');
+                      }}
                       className="w-8 h-8 rounded border-none cursor-pointer bg-transparent"
                     />
                     <span className="text-xs font-mono">{brand.backgroundColor}</span>
@@ -742,7 +894,10 @@ export const SlideEditorSidebar: React.FC<SlideEditorSidebarProps> = ({
                     <input
                       type="color"
                       value={brand.textColor}
-                      onChange={(e) => updateBrand({ textColor: e.target.value })}
+                      onChange={(e) => {
+                        updateBrand({ textColor: e.target.value });
+                        setThemeStyle('custom');
+                      }}
                       className="w-8 h-8 rounded border-none cursor-pointer bg-transparent"
                     />
                     <span className="text-xs font-mono">{brand.textColor}</span>
@@ -755,7 +910,10 @@ export const SlideEditorSidebar: React.FC<SlideEditorSidebarProps> = ({
                     <input
                       type="color"
                       value={brand.accentColor}
-                      onChange={(e) => updateBrand({ accentColor: e.target.value })}
+                      onChange={(e) => {
+                        updateBrand({ accentColor: e.target.value });
+                        setThemeStyle('custom');
+                      }}
                       className="w-8 h-8 rounded border-none cursor-pointer bg-transparent"
                     />
                     <span className="text-xs font-mono">{brand.accentColor}</span>

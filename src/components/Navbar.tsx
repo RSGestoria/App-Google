@@ -9,6 +9,7 @@ import {
   Download,
   Check,
   Zap,
+  Languages,
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -17,6 +18,7 @@ interface NavbarProps {
   openExportModal: () => void;
   openPreviewModal: () => void;
   openAIModal: () => void;
+  openTranslateModal?: () => void;
   projectTitle: string;
   setProjectTitle: (title: string) => void;
 }
@@ -27,6 +29,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   openExportModal,
   openPreviewModal,
   openAIModal,
+  openTranslateModal,
   projectTitle,
   setProjectTitle,
 }) => {
@@ -112,6 +115,17 @@ export const Navbar: React.FC<NavbarProps> = ({
 
       {/* ACTION BUTTONS */}
       <div className="flex items-center gap-2">
+        {openTranslateModal && (
+          <button
+            onClick={openTranslateModal}
+            className="p-2 md:px-3 md:py-2 rounded-xl bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-500/40 text-emerald-300 text-xs font-bold flex items-center gap-1.5 transition shadow-sm"
+            title="Extrair e Traduzir Publicação para Espanhol LATAM"
+          >
+            <Languages className="w-4 h-4 text-emerald-400" />
+            <span className="hidden xl:inline">Traduzir Post (ES LATAM)</span>
+          </button>
+        )}
+
         <button
           onClick={openPreviewModal}
           className="p-2 md:px-3 md:py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-200 text-xs font-semibold flex items-center gap-1.5 transition"

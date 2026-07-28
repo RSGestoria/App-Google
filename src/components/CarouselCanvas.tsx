@@ -216,21 +216,21 @@ export const CarouselCanvas: React.FC<CarouselCanvasProps> = ({
       case 'clean-light':
         return { background: `linear-gradient(135deg, ${brand.backgroundColor || '#ffffff'} 0%, #f1f5f9 100%)` };
       case 'luxury-gold':
-        return { background: `linear-gradient(135deg, #09090b 0%, #1c1917 100%)` };
+        return { background: `linear-gradient(135deg, ${brand.backgroundColor || '#09090b'} 0%, #1c1917 100%)` };
       case 'neon-vibrant':
-        return { background: `linear-gradient(135deg, #030712 0%, #0f172a 50%, #1e1b4b 100%)` };
+        return { background: `linear-gradient(135deg, ${brand.backgroundColor || '#030712'} 0%, #1e1b4b 100%)` };
       case 'pastel-creative':
-        return { background: `linear-gradient(135deg, #fdf4ff 0%, #fae8ff 100%)` };
+        return { background: `linear-gradient(135deg, ${brand.backgroundColor || '#fdf4ff'} 0%, #fae8ff 100%)` };
       case 'corporate-blue':
-        return { background: `linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%)` };
+        return { background: `linear-gradient(135deg, ${brand.backgroundColor || '#0f172a'} 0%, #1e3a8a 100%)` };
       case 'custom':
       default:
-        return { backgroundColor: brand.backgroundColor || '#0f172a' };
+        return { background: `linear-gradient(135deg, ${brand.backgroundColor || '#0f172a'} 0%, ${brand.secondaryColor || '#030712'} 100%)` };
     }
   };
 
   const isDark = themeStyle !== 'clean-light' && themeStyle !== 'pastel-creative';
-  const textColor = slide.accentColor ? brand.textColor : (isDark ? '#f8fafc' : '#0f172a');
+  const textColor = brand.textColor || (isDark ? '#f8fafc' : '#0f172a');
   const accentColor = slide.accentColor || brand.primaryColor || '#6366f1';
 
   return (
