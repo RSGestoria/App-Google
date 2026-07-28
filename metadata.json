@@ -1,0 +1,6 @@
+{
+  "name": "Carrossel Studio AI - Criador de Carrosséis 3:4 para Instagram",
+  "description": "Crie carrosséis 3:4 profissionais para o Instagram com editor visual, modelos pré-definidos, análise de marca por URL, banco de ideias, gerador IA de slides e legendas, agendamento de posts e exportação em alta resolução.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
