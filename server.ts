@@ -203,58 +203,438 @@ function getFallbackCaptions(topic?: string) {
   };
 }
 
-function getFallbackExtractTranslate(input: string) {
-  const lines = (input || '').split('\n').filter(l => l.trim().length > 0);
-  const firstLine = lines[0] || 'Estrategia de Crecimiento Digital';
-  const cleanTitle = firstLine.replace(/https?:\/\/\S+/g, '').replace(/[@#]/g, '').slice(0, 50).trim() || 'Estrategia LATAM';
+function decodeHtmlEntities(str: string): string {
+  if (!str) return '';
+  return str
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&#x27;/g, "'")
+    .replace(/&nbsp;/g, ' ');
+}
 
-  const slides = [
-    {
-      id: `ext-1-${Date.now()}`,
-      layout: 'cover',
-      title: `Estrategia LATAM: ${cleanTitle}`,
-      subtitle: 'Traducción y adaptación al español latinoamericano nativo.',
-      badgeText: 'ESPAÑOL LATAM',
-    },
-    {
-      id: `ext-2-${Date.now()}`,
-      layout: 'content',
-      title: '01. Clave Principal de Rendimiento',
-      subtitle: 'Información extraída y adaptada:',
-      body: lines[1] || 'Aplica estos conceptos directamente en tu rutina digital para maximizar el alcance y la conversión.',
-      bullets: [
-        'Enfoque claro en la audiencia objetivo',
-        'Llamado a la acción directo y medible',
-      ],
-      badgeText: 'PASO 01',
-    },
-    {
-      id: `ext-3-${Date.now()}`,
-      layout: 'checklist',
-      title: '02. Pasos de Ejecución Práctica',
-      subtitle: 'Listado de acciones recomendadas:',
-      bullets: lines.length > 2 ? lines.slice(2, 6) : [
-        'Optimización de perfil y contenido de valor',
-        'Publicación constante de carruseles 3:4',
-        'Interacción activa con la comunidad',
-      ],
-      badgeText: 'CHECKLIST',
-    },
-    {
-      id: `ext-4-${Date.now()}`,
-      layout: 'cta',
-      title: '¿Te Sirvió este Contenido?',
-      subtitle: 'Guarda este post para consultar después y compártelo con tu equipo.',
-      ctaText: '¡Guarda y Síguenos para más! 📌',
-      badgeText: 'ACCIÓN',
-    },
+async function scrapeAndExtractTextFromUrl(urlStr: string): Promise<{
+  scrapedSuccess: boolean;
+  title?: string;
+  author?: string;
+  caption?: string;
+  fullContent?: string;
+  rawText: string;
+}> {
+  const trimmed = (urlStr || '').trim();
+  if (!/^https?:\/\//i.test(trimmed)) {
+    return { scrapedSuccess: false, rawText: trimmed };
+  }
+
+  let scrapedText = '';
+  let title = '';
+  let author = '';
+  let caption = '';
+
+  const isInstagram = /instagram\.com|instagr\.am/i.test(trimmed);
+
+  if (isInstagram) {
+    const match = trimmed.match(/\/(p|reel|tv)\/([A-Za-z0-9_-]+)/);
+    const postId = match ? match[2] : null;
+
+    if (postId) {
+      // 1. Try ddinstagram.com (public mirror with opengraph meta tags)
+      try {
+        const ddRes = await fetch(`https://ddinstagram.com/p/${postId}`, {
+          headers: {
+            'User-Agent': 'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)',
+            'Accept-Language': 'pt-BR,pt;q=0.9,es;q=0.8,en;q=0.7',
+          },
+        });
+        if (ddRes.ok) {
+          const html = await ddRes.text();
+          const ogDesc = html.match(/<meta\s+(?:property|name)="(?:og:description|twitter:description)"\s+content="([^"]+)"/i) ||
+                         html.match(/<meta\s+content="([^"]+)"\s+(?:property|name)="(?:og:description|twitter:description)"/i);
+          if (ogDesc && ogDesc[1]) {
+            caption = decodeHtmlEntities(ogDesc[1]).trim();
+          }
+          const ogTitle = html.match(/<meta\s+(?:property|name)="og:title"\s+content="([^"]+)"/i);
+          if (ogTitle && ogTitle[1]) {
+            author = decodeHtmlEntities(ogTitle[1]).replace(/on Instagram.*/i, '').trim();
+          }
+        }
+      } catch (e: any) {
+        console.warn('ddinstagram scraping attempt failed:', e?.message);
+      }
+
+      // 2. Try vxinstagram.com if caption is still empty
+      if (!caption) {
+        try {
+          const vxRes = await fetch(`https://vxinstagram.com/p/${postId}`, {
+            headers: {
+              'User-Agent': 'TelegramBot (like TwitterBot)',
+            },
+          });
+          if (vxRes.ok) {
+            const html = await vxRes.text();
+            const ogDesc = html.match(/<meta\s+(?:property|name)="(?:og:description|twitter:description)"\s+content="([^"]+)"/i);
+            if (ogDesc && ogDesc[1]) {
+              caption = decodeHtmlEntities(ogDesc[1]).trim();
+            }
+          }
+        } catch (e: any) {
+          console.warn('vxinstagram scraping attempt failed:', e?.message);
+        }
+      }
+
+      // 3. Try Instagram embed/captioned if caption is still empty
+      if (!caption) {
+        try {
+          const embedUrl = `https://www.instagram.com/p/${postId}/embed/captioned/`;
+          const embedRes = await fetch(embedUrl, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+              'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8',
+            },
+          });
+          if (embedRes.ok) {
+            const html = await embedRes.text();
+            const captionMatch = html.match(/<div class="Caption"[^>]*>([\s\S]*?)<\/div>/i) ||
+                                 html.match(/"caption":\s*"([^"]+)"/i);
+            if (captionMatch && captionMatch[1]) {
+              caption = decodeHtmlEntities(
+                captionMatch[1]
+                  .replace(/\\n/g, '\n')
+                  .replace(/\\"/g, '"')
+                  .replace(/<[^>]+>/g, ' ')
+                  .trim()
+              );
+            }
+            const authorMatch = html.match(/<a class="CaptionUsername"[^>]*>([\s\S]*?)<\/a>/i) ||
+                                html.match(/"username":\s*"([^"]+)"/i);
+            if (authorMatch && authorMatch[1] && !author) {
+              author = authorMatch[1].replace(/<[^>]+>/g, '').trim();
+            }
+          }
+        } catch (e: any) {
+          console.warn('Instagram embed scraping failed:', e?.message);
+        }
+      }
+    }
+
+    // 4. Try Instagram oEmbed safely checking JSON content-type
+    if (!caption) {
+      try {
+        const oembedUrl = `https://api.instagram.com/oembed/?url=${encodeURIComponent(trimmed)}`;
+        const oembedRes = await fetch(oembedUrl, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          },
+        });
+        if (oembedRes.ok && oembedRes.headers.get('content-type')?.includes('application/json')) {
+          const oembedData = await oembedRes.json();
+          if (oembedData.title) {
+            caption = decodeHtmlEntities(oembedData.title);
+          }
+          if (oembedData.author_name) {
+            author = oembedData.author_name;
+          }
+        }
+      } catch (e: any) {
+        console.warn('Instagram oEmbed check failed safely:', e?.message);
+      }
+    }
+
+    if (caption) {
+      scrapedText = `[CONTEÚDO EXTRAÍDO DO POST DO INSTAGRAM]
+${author ? `Autor: @${author}\n` : ''}Legenda Completa da Publicação:
+${caption}`;
+      return {
+        scrapedSuccess: true,
+        author,
+        caption,
+        rawText: scrapedText,
+      };
+    }
+  }
+
+  // General Web Page Scraping
+  try {
+    const pageRes = await fetch(trimmed, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7',
+      },
+      redirect: 'follow',
+    });
+
+    if (pageRes.ok) {
+      const html = await pageRes.text();
+
+      // Extract Title
+      const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+      if (titleMatch) title = decodeHtmlEntities(titleMatch[1].replace(/<[^>]+>/g, '').trim());
+
+      // Extract OG / Meta Description
+      const metaDescMatch = html.match(/<meta\s+(?:name|property)="(?:description|og:description)"\s+content="([^"]+)"/i) ||
+                            html.match(/<meta\s+content="([^"]+)"\s+(?:name|property)="(?:description|og:description)"/i);
+      if (metaDescMatch) caption = decodeHtmlEntities(metaDescMatch[1].trim());
+
+      // Strip scripts, styles, header, footer, nav
+      const cleanHtml = html
+        .replace(/<script[\s\S]*?<\/script>/gi, '')
+        .replace(/<style[\s\S]*?<\/style>/gi, '')
+        .replace(/<nav[\s\S]*?<\/nav>/gi, '')
+        .replace(/<footer[\s\S]*?<\/footer>/gi, '')
+        .replace(/<header[\s\S]*?<\/header>/gi, '');
+
+      // Extract headings & paragraphs
+      const textBlocks: string[] = [];
+      const blockRegex = /<(h1|h2|h3|h4|p|li)[^>]*>([\s\S]*?)<\/\1>/gi;
+      let m;
+      while ((m = blockRegex.exec(cleanHtml)) !== null) {
+        const text = decodeHtmlEntities(m[2].replace(/<[^>]+>/g, '').trim());
+        if (text.length > 15 && !textBlocks.includes(text)) {
+          textBlocks.push(text);
+        }
+      }
+
+      const bodyContent = textBlocks.slice(0, 30).join('\n\n');
+
+      scrapedText = `[CONTEÚDO EXTRAÍDO DA PÁGINA WEB]
+URL: ${trimmed}
+TÍTULO DA PÁGINA: ${title || 'Não especificado'}
+DESCRIÇÃO/RESUMO: ${caption || 'Não especificada'}
+
+CONTEÚDO PRINCIPAL DO ARTIGO/SITE:
+${bodyContent || title || caption}`;
+
+      if (bodyContent || title || caption) {
+        return {
+          scrapedSuccess: true,
+          title,
+          caption,
+          fullContent: bodyContent,
+          rawText: scrapedText,
+        };
+      }
+    }
+  } catch (err: any) {
+    console.warn(`Scraping URL ${trimmed} failed:`, err?.message);
+  }
+
+  return { scrapedSuccess: false, rawText: trimmed };
+}
+
+function translatePtToEsLatAm(text: string): string {
+  if (!text) return '';
+  let str = text;
+
+  const replacements: [RegExp, string][] = [
+    [/\bcomo criar\b/gi, 'cómo crear'],
+    [/\bpasso a passo\b/gi, 'paso a paso'],
+    [/\bdicas para\b/gi, 'consejos para'],
+    [/\bdica\b/gi, 'consejo'],
+    [/\bdicas\b/gi, 'consejos'],
+    [/\bveja como\b/gi, 'mira cómo'],
+    [/\bsalve este post\b/gi, 'guarda este post'],
+    [/\bsalve para ver depois\b/gi, 'guarda para ver después'],
+    [/\bcompartilhe com\b/gi, 'comparte con'],
+    [/\bcompartilhe\b/gi, 'comparte'],
+    [/\bcurta e comente\b/gi, 'dale me gusta y comenta'],
+    [/\bcurta\b/gi, 'dale me gusta'],
+    [/\bcomente\b/gi, 'comenta'],
+    [/\bsiga o perfil\b/gi, 'sigue el perfil'],
+    [/\bsiga a página\b/gi, 'sigue la página'],
+    [/\bvocê precisa\b/gi, 'necesitas'],
+    [/\bvocê sabia\b/gi, '¿sabías que'],
+    [/\bvocê pode\b/gi, 'puedes'],
+    [/\bvocê quer\b/gi, '¿quieres'],
+    [/\bvocê\b/gi, 'tú'],
+    [/\bseu negócio\b/gi, 'tu negocio'],
+    [/\bseus negócios\b/gi, 'tus negocios'],
+    [/\bseu perfil\b/gi, 'tu perfil'],
+    [/\bseu público\b/gi, 'tu audiencia'],
+    [/\bseus resultados\b/gi, 'tus resultados'],
+    [/\bseu\b/gi, 'tu'],
+    [/\bsua\b/gi, 'tu'],
+    [/\bseus\b/gi, 'tus'],
+    [/\bsuas\b/gi, 'tus'],
+    [/\bnosso\b/gi, 'nuestro'],
+    [/\bnossa\b/gi, 'nuestra'],
+    [/\bnossos\b/gi, 'nuestros'],
+    [/\bnossas\b/gi, 'nuestras'],
+    [/\bconteúdo de valor\b/gi, 'contenido de valor'],
+    [/\bconteúdo\b/gi, 'contenido'],
+    [/\bconteúdos\b/gi, 'contenidos'],
+    [/\bestratégia\b/gi, 'estrategia'],
+    [/\bestratégias\b/gi, 'estrategias'],
+    [/\bcomunicação\b/gi, 'comunicación'],
+    [/\bprodução\b/gi, 'producción'],
+    [/\bpublicação\b/gi, 'publicación'],
+    [/\bpublicações\b/gi, 'publicaciones'],
+    [/\bengajamento\b/gi, 'interacción y engagement'],
+    [/\balcance\b/gi, 'alcance'],
+    [/\bseguidores\b/gi, 'seguidores'],
+    [/\bvendas\b/gi, 'ventas'],
+    [/\bvenda\b/gi, 'venta'],
+    [/\bcrescimento\b/gi, 'crecimiento'],
+    [/\batenção\b/gi, 'atención'],
+    [/\binformação\b/gi, 'información'],
+    [/\berros comuns\b/gi, 'errores comunes'],
+    [/\berro\b/gi, 'error'],
+    [/\berros\b/gi, 'errores'],
+    [/\bsucesso\b/gi, 'éxito'],
+    [/\bprincipais\b/gi, 'principales'],
+    [/\bprincipal\b/gi, 'principal'],
+    [/\bferramentas\b/gi, 'herramientas'],
+    [/\bferramenta\b/gi, 'herramienta'],
+    [/\bmelhores\b/gi, 'mejores'],
+    [/\bmelhor\b/gi, 'mejor'],
+    [/\bmaior\b/gi, 'mayor'],
+    [/\bmaiores\b/gi, 'mayores'],
+    [/\bhoje\b/gi, 'hoy'],
+    [/\bagora\b/gi, 'ahora'],
+    [/\bsempre\b/gi, 'siempre'],
+    [/\bnunca\b/gi, 'nunca'],
+    [/\btambém\b/gi, 'también'],
+    [/\bmuito\b/gi, 'mucho'],
+    [/\bmuitos\b/gi, 'muchos'],
+    [/\bmuitas\b/gi, 'muchas'],
+    [/\bmais\b/gi, 'más'],
+    [/\bmenos\b/gi, 'menos'],
+    [/\bnão\b/gi, 'no'],
+    [/\bsim\b/gi, 'sí'],
+    [/\bpara\b/gi, 'para'],
+    [/\bcom\b/gi, 'con'],
+    [/\bsem\b/gi, 'sin'],
+    [/\bsobre\b/gi, 'sobre'],
+    [/\bquando\b/gi, 'cuando'],
+    [/\bonde\b/gi, 'dónde'],
+    [/\bpor que\b/gi, 'por qué'],
+    [/\bporque\b/gi, 'porque'],
+    [/\bentão\b/gi, 'entonces'],
+    [/\bmas\b/gi, 'pero'],
+    [/\bou\b/gi, 'o'],
+    [/\bque\b/gi, 'que'],
+    [/\bisso\b/gi, 'esto'],
+    [/\bisto\b/gi, 'esto'],
+    [/\baquilo\b/gi, 'aquello'],
+    [/\baudiência\b/gi, 'audiencia'],
+    [/\bolha\b/gi, 'mira'],
+    [/\bolhe\b/gi, 'mira'],
+    [/\bentenda\b/gi, 'entiende'],
+    [/\baprenda\b/gi, 'aprende'],
+    [/\bconfira\b/gi, 'mira'],
+    [/\bdescubra\b/gi, 'descubre'],
+    [/\bveja\b/gi, 'mira'],
+    [/\bsaiba\b/gi, 'conoce'],
+    [/\bfaça\b/gi, 'haz'],
+    [/\btenha\b/gi, 'ten'],
+    [/\bseja\b/gi, 'sé'],
+    [/\buse\b/gi, 'usa'],
+    [/\butilize\b/gi, 'utiliza'],
   ];
 
+  for (const [regex, replacement] of replacements) {
+    str = str.replace(regex, replacement);
+  }
+
+  return str;
+}
+
+function getFallbackExtractTranslate(input: string) {
+  const cleanRaw = (input || '').trim();
+  const isUrl = /^https?:\/\//i.test(cleanRaw);
+  let cleanText = cleanRaw;
+
+  if (isUrl) {
+    try {
+      const urlObj = new URL(cleanRaw);
+      const parts = urlObj.pathname.split('/').filter(Boolean);
+      if (parts.length > 0) {
+        cleanText = parts[parts.length - 1].replace(/[-_]/g, ' ');
+      }
+    } catch (e) {
+      cleanText = cleanRaw;
+    }
+  }
+
+  // Split into paragraphs / sections
+  const sections = cleanText
+    .split(/\n\s*\n|\n(?=[0-9]+\.|\u2022|\-|\*|Slide|SLIDE)/gi)
+    .map(s => s.trim())
+    .filter(s => s.length > 0);
+
+  const translatedSections = sections.map(s => translatePtToEsLatAm(s));
+
+  if (translatedSections.length === 0) {
+    translatedSections.push('Estrategia de Contenido Digital en Español LATAM');
+  }
+
+  const slides: any[] = [];
+
+  // Slide 1: Cover
+  const coverText = translatedSections[0];
+  const coverLines = coverText.split('\n').filter(Boolean);
+  const coverTitle = coverLines[0] || 'Estrategia de Contenido LATAM';
+  const coverSubtitle = coverLines.slice(1).join(' ') || 'Traducción y adaptación al español latinoamericano nativo.';
+
+  slides.push({
+    id: `ext-1-${Date.now()}`,
+    layout: 'cover',
+    title: coverTitle.slice(0, 70),
+    subtitle: coverSubtitle.slice(0, 120),
+    badgeText: 'ESPAÑOL LATAM 🇲🇽',
+  });
+
+  // Middle Content Slides
+  const middleSections = translatedSections.length > 1 ? translatedSections.slice(1) : [
+    'Aplica estos consejos esenciales para optimizar tus resultados:',
+    '• Define tu propuesta de valor única\n• Publica contenido relevante con consistencia\n• Interactúa activamente con tu audiencia',
+  ];
+
+  middleSections.forEach((sec, idx) => {
+    const lines = sec.split('\n').map(l => l.trim()).filter(Boolean);
+    const rawTitle = lines[0] || `Clave ${idx + 1}`;
+    const bodyLines = lines.slice(1);
+
+    const bullets = bodyLines
+      .filter(l => l.startsWith('•') || l.startsWith('-') || l.startsWith('*') || /^[0-9]+\./.test(l))
+      .map(l => l.replace(/^[\u2022\-\*\s0-9\.]+\s*/, ''));
+
+    const normalBody = bodyLines
+      .filter(l => !l.startsWith('•') && !l.startsWith('-') && !l.startsWith('*') && !/^[0-9]+\./.test(l))
+      .join(' ');
+
+    const layout = bullets.length >= 2 ? 'checklist' : 'content';
+
+    slides.push({
+      id: `ext-${idx + 2}-${Date.now()}`,
+      layout,
+      title: rawTitle.replace(/^[\u2022\-\*\s0-9\.]+\s*/, '').slice(0, 65),
+      subtitle: normalBody ? normalBody.slice(0, 100) : 'Información extraída y traducida:',
+      body: normalBody || (bullets.length === 0 ? 'Implementa esta estrategia en tu plan diario de redes.' : undefined),
+      bullets: bullets.length > 0 ? bullets : undefined,
+      badgeText: `PASO 0${idx + 1}`,
+    });
+  });
+
+  // Slide Final: CTA
+  slides.push({
+    id: `ext-cta-${Date.now()}`,
+    layout: 'cta',
+    title: '¿Te Sirvió este Contenido?',
+    subtitle: 'Guarda esta publicación para consultar más tarde y compártela con tu equipo.',
+    ctaText: '¡Guarda y Síguenos para más! 📌',
+    badgeText: 'ACCIÓN',
+  });
+
+  const fullCaptionText = translatedSections.join('\n\n');
+
   return {
-    title: `[ES LATAM] ${cleanTitle}`,
+    title: `[ES LATAM] ${coverTitle.slice(0, 40)}`,
     slides,
-    caption: `🚀 ${cleanTitle}\n\n¡Hemos adaptado esta publicación para la comunidad de América Latina!\n\n📌 Guarda esta información para consultar más tarde y compártela.`,
-    hashtags: ['#espanollatam', '#carruselinstagram', '#estrategiadigital', '#marketinglatam', '#contenidodevalor'],
+    caption: `🚀 ${coverTitle}\n\n${fullCaptionText}\n\n📌 ¡Guarda esta información para consultar más tarde y compártela con tu comunidad!`,
+    hashtags: ['#espanollatam', '#carruselinstagram', '#estrategiadigital', '#contenidodevalor', '#marketinglatam'],
   };
 }
 
@@ -265,11 +645,19 @@ app.post('/api/analyze-brand', async (req, res) => {
     return res.status(400).json({ error: 'Forneça um link de site ou usuário do Instagram.' });
   }
 
+  let scrapedText = '';
+  if (url) {
+    const scraped = await scrapeAndExtractTextFromUrl(url);
+    scrapedText = scraped.rawText;
+  }
+
   try {
     const ai = getGenAI();
-    const promptText = `Análise a marca/perfil com base nas seguintes informações:
+    const promptText = `Análise a marca/perfil com base nas seguintes informações fornecidas e raspadas da web:
 Handle Instagram: ${handle || 'Não informado'}
 URL / Website: ${url || 'Não informado'}
+Texto Extraído / Conteúdo da URL:
+${scrapedText || 'Nenhum texto extraído diretamente.'}
 
 Identifique ou deduza estrategicamente para criar carrosséis do Instagram 3:4 de alta conversão:
 1. Nome da marca
@@ -695,15 +1083,19 @@ app.post('/api/extract-translate-post', async (req, res) => {
     return res.status(400).json({ error: 'Forneça o link ou os textos da publicação.' });
   }
 
+  // 1. Scrape and extract real content from URL if input is an Instagram / website link
+  const scrapedData = await scrapeAndExtractTextFromUrl(urlOrText);
+  const contentToProcess = scrapedData.scrapedSuccess ? scrapedData.rawText : urlOrText;
+
   try {
     const ai = getGenAI();
     const promptText = `Eres un traductor nativo y estratega de contenido para Instagram en América Latina (Español LATAM Neutro / Mexicano / Colombiano).
-Analiza y extrae la publicación adjunta (URL, post de Instagram, o borrador de texto).
-Estructura todos los slides, títulos, subtítulos, bullets, llamada a la acción (CTA), leyenda completa y hashtags.
-TRADUCE Y ADAPTA TODO AL ESPAÑOL LATINOAMERICANO NATIVO, persasivo y de alta conversión.
+Analiza y extrae el texto de la siguiente publicación (que incluye el texto real raspado de la página web o publicación de Instagram).
+Estructura todos los slides, títulos, subtítulos, bullets, llamada a la acción (CTA), leyenda completa y hashtags para un carrusel 3:4.
+TRADUCE Y ADAPTA TODO EL TEXTO AO ESPAÑOL LATINOAMERICANO NATIVO, persuasivo y de alta conversión.
 
-Entrada Original:
-${urlOrText}`;
+Contenido Real Extraído para Traducir:
+${contentToProcess}`;
 
     const response = await ai.models.generateContent({
       model: 'gemini-3.6-flash',
@@ -759,7 +1151,7 @@ ${urlOrText}`;
     });
   } catch (error: any) {
     console.warn('Gemini API call failed for extract-translate-post, using fallback:', error?.message);
-    return res.json(getFallbackExtractTranslate(urlOrText));
+    return res.json(getFallbackExtractTranslate(contentToProcess));
   }
 });
 

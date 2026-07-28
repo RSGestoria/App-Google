@@ -273,21 +273,33 @@ export const SlideEditorSidebar: React.FC<SlideEditorSidebarProps> = ({
       </div>
 
       {/* QUICK AI GENERATION & BRAND ANALYZER STRIP */}
-      <div className="p-3 bg-gradient-to-r from-indigo-950 to-slate-900 border-b border-slate-800 flex items-center justify-between gap-2">
-        <button
-          onClick={openAIModal}
-          className="flex-1 py-2 px-3 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition shadow-sm"
-        >
-          <Sparkles className="w-3.5 h-3.5" />
-          Gerar Carrossel com IA
-        </button>
-        <button
-          onClick={openBrandModal}
-          className="py-2 px-3 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1 transition border border-slate-700"
-          title="Analisar Marca por Link do Instagram/Website"
-        >
-          Analisar URL
-        </button>
+      <div className="p-3 bg-gradient-to-r from-indigo-950 via-slate-900 to-emerald-950 border-b border-slate-800 space-y-2">
+        <div className="flex items-center justify-between gap-2">
+          <button
+            onClick={openAIModal}
+            className="flex-1 py-2 px-3 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition shadow-sm"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            Gerar com IA
+          </button>
+          <button
+            onClick={openBrandModal}
+            className="py-2 px-3 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1 transition border border-slate-700"
+            title="Analisar Marca por Link do Instagram/Website"
+          >
+            Analisar URL
+          </button>
+        </div>
+
+        {openTranslateModal && (
+          <button
+            onClick={openTranslateModal}
+            className="w-full py-2 px-3 rounded-lg bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-500/40 text-emerald-300 text-xs font-bold flex items-center justify-center gap-2 transition shadow-sm"
+          >
+            <Languages className="w-3.5 h-3.5 text-emerald-400" />
+            Extrair & Traduzir Post (ES LATAM 🇲🇽)
+          </button>
+        )}
       </div>
 
       {/* TAB CONTENT */}

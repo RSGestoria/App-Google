@@ -132,20 +132,32 @@ export const ExtractTranslateModal: React.FC<ExtractTranslateModalProps> = ({
         {/* INPUT FORM */}
         <form onSubmit={handleExtractAndTranslate} className="space-y-4">
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-slate-300 flex items-center justify-between">
-              <span className="flex items-center gap-1.5">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
                 <Instagram className="w-3.5 h-3.5 text-pink-400" />
-                Link da Publicação do Instagram / Site ou Conteúdo Bruto
-              </span>
-              <span className="text-[10px] text-slate-500">Aceita URLs e Textos em PT-BR</span>
-            </label>
+                Link da Publicação ou Texto dos Slides (PT-BR)
+              </label>
+              <button
+                type="button"
+                onClick={() => setInputContent(`Como Criar Conteúdo de Alto Impacto no Instagram\n\nPasso 1: Entenda o seu público e sua audiência\nVocê precisa conhecer os maiores desejos e necessidades do seu cliente.\n\nPasso 2: Mantenha a consistência semanal\nPublicar conteúdo de valor atrai mais seguidores e aumenta suas vendas.\n\nPasso 3: Faça um chamado para ação claro\nSempre peça para salvar este post e compartilhar com seus amigos.`)}
+                className="text-[10px] text-emerald-400 hover:underline font-semibold"
+              >
+                + Testar com Exemplo de Post PT-BR
+              </button>
+            </div>
             <textarea
-              rows={4}
+              rows={5}
               value={inputContent}
               onChange={(e) => setInputContent(e.target.value)}
-              placeholder="Cole aqui o link do Instagram (ex: https://instagram.com/p/...) ou cole os textos dos slides originais para tradução automática..."
+              placeholder="Cole o link do post do Instagram (ex: https://instagram.com/p/...) ou os textos originais em Português do seu carrossel..."
               className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 leading-relaxed"
             />
+            <p className="text-[11px] text-slate-400 flex items-center gap-1.5">
+              <span>💡</span>
+              <span>
+                <b>Dica:</b> Você pode colar um link público do Instagram/Website <i>ou</i> colar o texto original do seu post em Português.
+              </span>
+            </p>
           </div>
 
           {errorMsg && (

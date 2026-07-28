@@ -231,7 +231,7 @@ export const CarouselCanvas: React.FC<CarouselCanvasProps> = ({
 
   const isDark = themeStyle !== 'clean-light' && themeStyle !== 'pastel-creative';
   const textColor = brand.textColor || (isDark ? '#f8fafc' : '#0f172a');
-  const accentColor = slide.accentColor || brand.primaryColor || '#6366f1';
+  const accentColor = (themeStyle === 'custom' && brand.primaryColor) ? brand.primaryColor : (slide.accentColor || brand.primaryColor || '#6366f1');
 
   return (
     <div
